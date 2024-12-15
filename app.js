@@ -7,7 +7,8 @@ const Campground = require('./models/campground');
 const ejsMate = require('ejs-mate');
 const catchAsync = require('./utils/catchAsync');
 const ExpressErrors = require('./utils/ExpressErrors');
-const {campgroundSchema} = require('./schema.js')
+const {campgroundSchema, reviewSchema} = require('./schema.js');
+const Review = require('./models/reviews')
 
 //database connection
 mongoose.connect('mongodb://127.0.0.1:27017/yelp-camp')
@@ -22,6 +23,7 @@ db.once('open', () => {
 
 //define Joi schema
 //Joi schema as validate middleware
+//validate campground input
 const validateCampground = (req, res, next) => {
     
     //if use postman or Hoppscotch to post data (since post nothing is prohibitted thru control by Bootrap)
@@ -37,7 +39,16 @@ const validateCampground = (req, res, next) => {
     }
 }
 
-
+//validate campground review
+const validateReview = (req, res, next) => {
+    const {error} = reviewSchema.validate(req.body);
+    if (error) {
+        const message = error.details.map(el => el.message).join(',')
+        throw new ExpressErrors(message, 400);
+    } else {
+        next();
+    }
+}
 
 //express
 const app = express();
@@ -76,7 +87,7 @@ app.post('/campgrounds', validateCampground, catchAsync(async (req, res, next) =
 
 //Read
 app.get('/campgrounds/:id', catchAsync(async (req, res) => {
-    const campground = await Campground.findById(req.params.id)
+    const campground = await Campground.findById(req.params.id).populate('reviews');
     res.render('campgrounds/show', {campground});
 }))
 
@@ -98,6 +109,25 @@ app.delete('/campgrounds/:id', catchAsync(async (req, res) => {
     await Campground.findByIdAndDelete(id);
     res.redirect('/campgrounds');
 }))
+
+//post review
+app.post('/campgrounds/:id/reviews', validateReview, catchAsync(async (req, res, next) => {
+    const campground = await Campground.findById(req.params.id)
+    const newReview = new Review(req.body.review);
+    campground.reviews.push(newReview);
+    await newReview.save();
+    await campground.save();
+    res.redirect(`/campgrounds/${campground._id}`);
+}))
+
+//delete review
+app.delete('/campgrounds/:id/reviews/:reviewId', catchAsync(async (req, res) => {
+    const {id, reviewId} = req.params;
+    await Campground.findByIdAndUpdate(id, { $pull: {reviews: reviewId }})
+    await Review.findByIdAndDelete(reviewId);
+    res.redirect(`/campgrounds/${id}`)
+}))
+
 
 //error handling
 app.all('*', (req, res, next) => {
