@@ -7,6 +7,9 @@ const ejsMate = require('ejs-mate');
 const ExpressErrors = require('./utils/ExpressErrors');
 const session = require('express-session');
 const flash = require('connect-flash')
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
+const User = require('./models/user')
 
 //database connection
 mongoose.connect('mongodb://127.0.0.1:27017/yelp-camp')
@@ -39,25 +42,45 @@ const sessionConfig = {
         maxAge: 1000 * 60 * 60 * 24 * 7
     }
 }
+
+//set up authentication
 app.use(session(sessionConfig))
+app.use(passport.initialize());
+app.use(passport.session());
+// use static authenticate method of model in LocalStrategy
+passport.use(new LocalStrategy(User.authenticate())); //local strategy: store username and password
+// use static serialize and deserialize of model for passport session support
+passport.serializeUser(User.serializeUser()); //how to get data or store a user in the session
+passport.deserializeUser(User.deserializeUser()); //get user out of session
 
 //set up flash
 app.use(flash())
 app.use((req, res, next) => { // the middleware setup so I don't need to do: res.render('index', { messages: req.flash('info') });
     // access to the template without passing thru on every request
+    console.log(req.session)
     res.locals.success = req.flash('success');
     res.locals.error = req.flash('error');
+    res.locals.currentUser = req.user; // set up glocal things to all the templates, to have current user 
     next();
 })
+
+app.get('/fakeuser', async(req, res) => {
+    const user = new User({email: "test@gmail.com", username: 'test'});
+    const newUser = await User.register(user, 'test_password');
+    res.send(newUser);
+})
+
+//set up routes
+const userRoutes = require('./routes/users');
+const campgroundRoutes = require('./routes/campgroundRoutes')
+const reviewRoutes = require('./routes/reviewRouters')
+
 
 app.get('/', (req, res) => {
     res.render('home');
 })
 
-//set up routes
-const campgroundRoutes = require('./routes/campgroundRoutes')
-const reviewRoutes = require('./routes/reviewRouters')
-
+app.use('/', userRoutes);
 app.use('/campgrounds', campgroundRoutes);
 app.use('/campgrounds/:id/reviews', reviewRoutes);
 

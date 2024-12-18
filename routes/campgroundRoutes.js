@@ -4,6 +4,7 @@ const catchAsync = require('../utils/catchAsync');
 const ExpressErrors = require('../utils/ExpressErrors');
 const Campground = require('../models/campground');
 const {campgroundSchema} = require('../schema.js');
+const {isLoggedin} = require('../middleware')
 
 //define Joi schema
 //Joi schema as validate middleware
@@ -31,11 +32,11 @@ router.get('/', catchAsync(async (req, res) => {
 
 
 //Create
-router.get('/new', (req, res, next) => {
+router.get('/new', isLoggedin, (req, res, next) => {
     res.render('campgrounds/new');
 })
 
-router.post('/', validateCampground, catchAsync(async (req, res, next) => {
+router.post('/', isLoggedin, validateCampground, catchAsync(async (req, res, next) => {
 
     //to check what is sent back
     // console.log(error);
@@ -57,7 +58,7 @@ router.get('/:id', catchAsync(async (req, res) => {
 }))
 
 //Update
-router.get('/:id/edit', catchAsync(async (req, res) => {
+router.get('/:id/edit', isLoggedin, catchAsync(async (req, res) => {
     const campground = await Campground.findById(req.params.id);
     if (!campground) {
         req.flash('error', 'Cannot find the campground!')
@@ -66,7 +67,7 @@ router.get('/:id/edit', catchAsync(async (req, res) => {
     res.render('campgrounds/edit', {campground});
 }))
 
-router.patch('/:id', validateCampground, catchAsync(async (req, res) => {
+router.patch('/:id', isLoggedin, validateCampground, catchAsync(async (req, res) => {
     const {id} = req.params;
     const updatedCamp = await Campground.findByIdAndUpdate(id, {...req.body.campground}, { runValidators: true, new: true });
     req.flash('success', 'successfully update a campground')
@@ -74,7 +75,7 @@ router.patch('/:id', validateCampground, catchAsync(async (req, res) => {
 }))
 
 //Delete
-router.delete('/:id', catchAsync(async (req, res) => {
+router.delete('/:id', isLoggedin, catchAsync(async (req, res) => {
     const {id} = req.params;
     await Campground.findByIdAndDelete(id);
     req.flash('success', 'Campground deleted')
