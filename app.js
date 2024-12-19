@@ -57,7 +57,6 @@ passport.deserializeUser(User.deserializeUser()); //get user out of session
 app.use(flash())
 app.use((req, res, next) => { // the middleware setup so I don't need to do: res.render('index', { messages: req.flash('info') });
     // access to the template without passing thru on every request
-    console.log(req.session)
     res.locals.success = req.flash('success');
     res.locals.error = req.flash('error');
     res.locals.currentUser = req.user; // set up glocal things to all the templates, to have current user 
